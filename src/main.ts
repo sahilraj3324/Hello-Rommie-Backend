@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { setupMongoListeners } from './Database/mongo.provider';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  setupMongoListeners();
+  await app.listen(process.env.PORT ?? 4000);
 }
 bootstrap();
