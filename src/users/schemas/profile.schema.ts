@@ -5,9 +5,9 @@ export type ProfileDocument = Profile & Document;
 
 @Schema({ timestamps: true })
 export class Profile {
-    // Ownership
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-    userId: Types.ObjectId;
+    // Ownership (optional - can be linked later)
+    @Prop({ type: Types.ObjectId, ref: 'User' })
+    userId?: Types.ObjectId;
 
     // Personal Info
     @Prop({ required: true })

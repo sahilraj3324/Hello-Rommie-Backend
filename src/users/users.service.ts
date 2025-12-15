@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Profile, ProfileDocument } from './schemas/profile.schema';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -11,11 +11,8 @@ export class UsersService {
     @InjectModel(Profile.name) private profileModel: Model<ProfileDocument>,
   ) { }
 
-  async create(userId: string, createProfileDto: CreateProfileDto): Promise<Profile> {
-    const createdProfile = new this.profileModel({
-      ...createProfileDto,
-      userId: new Types.ObjectId(userId),
-    });
+  async create(createProfileDto: CreateProfileDto): Promise<Profile> {
+    const createdProfile = new this.profileModel(createProfileDto);
     return createdProfile.save();
   }
 
@@ -33,7 +30,7 @@ export class UsersService {
 
   async findByUserId(userId: string): Promise<Profile> {
     const profile = await this.profileModel
-      .findOne({ userId: new Types.ObjectId(userId) })
+      .findOne({ userId })
       .exec();
     if (!profile) {
       throw new NotFoundException(`Profile for user ${userId} not found`);
