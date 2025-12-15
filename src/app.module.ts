@@ -6,6 +6,7 @@ import { DatabaseModule } from './Database/database.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { ItemsModule } from './items/items.module';
 
 @Module({
   imports: [
@@ -24,6 +25,9 @@ import { RoomsModule } from './rooms/rooms.module';
 
     // ✅ Rooms module
     RoomsModule,
+
+    // ✅ Items module
+    ItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
