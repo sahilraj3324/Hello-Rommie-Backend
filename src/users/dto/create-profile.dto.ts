@@ -1,8 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean, MinLength } from 'class-validator';
 
 export class CreateProfileDto {
-    // Personal Info
+    // ==================== AUTH FIELDS ====================
+    @ApiProperty({ example: '9876543210', description: 'Contact number (used for login)' })
+    @IsString()
+    contactNumber: string;
+
+    @ApiProperty({ example: 'password123', description: 'Password (min 6 characters)' })
+    @IsString()
+    @MinLength(6)
+    password: string;
+
+    // ==================== PERSONAL INFO ====================
     @ApiProperty({ example: 'John Doe', description: 'Full name of the user' })
     @IsString()
     fullName: string;
@@ -29,7 +39,7 @@ export class CreateProfileDto {
     @IsString()
     profilePicUrl?: string;
 
-    // About
+    // ==================== ABOUT ====================
     @ApiPropertyOptional({ example: 'Software developer looking for a roommate' })
     @IsOptional()
     @IsString()
@@ -46,7 +56,7 @@ export class CreateProfileDto {
     @IsString({ each: true })
     interests?: string[];
 
-    // Location
+    // ==================== LOCATION ====================
     @ApiPropertyOptional({ example: 'Mumbai' })
     @IsOptional()
     @IsString()
@@ -61,7 +71,7 @@ export class CreateProfileDto {
     @IsString()
     address?: string;
 
-    // Lifestyle Preferences
+    // ==================== LIFESTYLE PREFERENCES ====================
     @ApiPropertyOptional({ enum: ['veg', 'non-veg', 'both'], example: 'both' })
     @IsOptional()
     @IsEnum(['veg', 'non-veg', 'both'])
@@ -92,15 +102,10 @@ export class CreateProfileDto {
     @IsEnum(['day', 'night', 'flexible'])
     workSchedule?: 'day' | 'night' | 'flexible';
 
-    // Contact
-    @ApiPropertyOptional({ example: '9876543210' })
-    @IsOptional()
-    @IsString()
-    contactNumber?: string;
-
-    // Status
+    // ==================== STATUS ====================
     @ApiPropertyOptional({ example: true, default: true })
     @IsOptional()
     @IsBoolean()
     isActive?: boolean;
 }
+

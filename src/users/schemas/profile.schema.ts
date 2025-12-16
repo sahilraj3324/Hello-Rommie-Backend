@@ -1,15 +1,25 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 
 export type ProfileDocument = Profile & Document;
 
 @Schema({ timestamps: true })
 export class Profile {
-    // Ownership (optional - can be linked later)
-    @Prop({ type: Types.ObjectId, ref: 'User' })
-    userId?: Types.ObjectId;
+    // ==================== AUTH FIELDS ====================
+    @Prop({ required: true, unique: true })
+    contactNumber: string;
 
-    // Personal Info
+    @Prop({ required: true })
+    password: string;
+
+    // Password reset OTP fields
+    @Prop()
+    resetOtp?: string;
+
+    @Prop()
+    resetOtpExpiry?: Date;
+
+    // ==================== PERSONAL INFO ====================
     @Prop({ required: true })
     fullName: string;
 
@@ -28,7 +38,7 @@ export class Profile {
     @Prop()
     profilePicUrl?: string;
 
-    // About
+    // ==================== ABOUT ====================
     @Prop()
     introduction?: string;
 
@@ -38,7 +48,7 @@ export class Profile {
     @Prop({ type: [String] })
     interests?: string[];
 
-    // Location
+    // ==================== LOCATION ====================
     @Prop()
     hometown?: string;
 
@@ -48,7 +58,7 @@ export class Profile {
     @Prop()
     address?: string;
 
-    // Lifestyle Preferences
+    // ==================== LIFESTYLE PREFERENCES ====================
     @Prop({ enum: ['veg', 'non-veg', 'both'] })
     foodPreference?: 'veg' | 'non-veg' | 'both';
 
@@ -67,13 +77,10 @@ export class Profile {
     @Prop({ enum: ['day', 'night', 'flexible'] })
     workSchedule?: 'day' | 'night' | 'flexible';
 
-    // Contact
-    @Prop()
-    contactNumber?: string;
-
-    // Status
+    // ==================== STATUS ====================
     @Prop({ default: true })
     isActive: boolean;
 }
 
 export const ProfileSchema = SchemaFactory.createForClass(Profile);
+
