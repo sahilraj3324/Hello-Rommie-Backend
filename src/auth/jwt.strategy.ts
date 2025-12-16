@@ -4,13 +4,13 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from './schemas/user.schema';
+import { Profile, ProfileDocument } from '../users/schemas/profile.schema';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(
         configService: ConfigService,
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
+        @InjectModel(Profile.name) private profileModel: Model<ProfileDocument>,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -20,10 +20,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(payload: { sub: string; contactNumber: string }) {
-        const user = await this.userModel.findById(payload.sub).select('-password');
-        if (!user || !user.isActive) {
+        const profile = await this.profileModel.findById(payload.sub).select('-password -resetOtp -resetOtpExpiry');
+        if (!profile || !profile.isActive) {
             throw new UnauthorizedException();
         }
-        return user;
+        return profile;
     }
 }
+

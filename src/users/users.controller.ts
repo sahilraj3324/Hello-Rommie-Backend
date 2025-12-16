@@ -10,8 +10,9 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new profile' })
+  @ApiOperation({ summary: 'Create a new profile (also registers the user)' })
   @ApiResponse({ status: 201, description: 'Profile created successfully' })
+  @ApiResponse({ status: 409, description: 'Profile with this contact number already exists' })
   create(@Body() createProfileDto: CreateProfileDto) {
     return this.usersService.create(createProfileDto);
   }
@@ -31,12 +32,12 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Get('user/:userId')
-  @ApiOperation({ summary: 'Get profile by User ID' })
+  @Get('phone/:contactNumber')
+  @ApiOperation({ summary: 'Get profile by contact number' })
   @ApiResponse({ status: 200, description: 'Profile found' })
   @ApiResponse({ status: 404, description: 'Profile not found' })
-  findByUserId(@Param('userId') userId: string) {
-    return this.usersService.findByUserId(userId);
+  findByContactNumber(@Param('contactNumber') contactNumber: string) {
+    return this.usersService.findByContactNumber(contactNumber);
   }
 
   @Patch(':id')
@@ -63,3 +64,4 @@ export class UsersController {
     return this.usersService.deactivate(id);
   }
 }
+

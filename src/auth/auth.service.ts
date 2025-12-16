@@ -8,126 +8,182 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { User, UserDocument } from './schemas/user.schema';
-import { RegisterDto } from './dto/register.dto';
+import { Profile, ProfileDocument } from '../users/schemas/profile.schema';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
+        @InjectModel(Profile.name) private profileModel: Model<ProfileDocument>,
         private jwtService: JwtService,
     ) { }
-
-    async register(registerDto: RegisterDto) {
-        const { contactNumber, password } = registerDto;
-
-        // Check if user already exists
-        const existingUser = await this.userModel.findOne({ contactNumber });
-        if (existingUser) {
-            throw new ConflictException('User with this contact number already exists');
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create user
-        const user = new this.userModel({
-            contactNumber,
-            password: hashedPassword,
-        });
-        await user.save();
-
-        // Generate token
-        const token = this.generateToken(user);
-
-        return {
-            message: 'User registered successfully',
-            userId: user._id,
-            token,
-        };
-    }
 
     async login(loginDto: LoginDto) {
         const { contactNumber, password } = loginDto;
 
-        // Find user
-        const user = await this.userModel.findOne({ contactNumber });
-        if (!user) {
+        // Find profile
+        const profile = await this.profileModel.findOne({ contactNumber });
+        if (!profile) {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        // Check if user is active
-        if (!user.isActive) {
+        // Check if profile is active
+        if (!profile.isActive) {
             throw new UnauthorizedException('Account is deactivated');
         }
 
         // Verify password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await bcrypt.compare(password, profile.password);
         if (!isPasswordValid) {
             throw new UnauthorizedException('Invalid credentials');
         }
 
         // Generate token
-        const token = this.generateToken(user);
+        const token = this.generateToken(profile);
 
         return {
             message: 'Login successful',
-            userId: user._id,
+            profileId: profile._id,
             token,
         };
     }
 
     async findAll() {
-        return this.userModel.find().select('-password').exec();
+        return this.profileModel.find().select('-password -resetOtp -resetOtpExpiry').exec();
     }
 
     async findOne(id: string) {
-        const user = await this.userModel.findById(id).select('-password').exec();
-        if (!user) {
-            throw new NotFoundException(`User with ID ${id} not found`);
+        const profile = await this.profileModel.findById(id).select('-password -resetOtp -resetOtpExpiry').exec();
+        if (!profile) {
+            throw new NotFoundException(`Profile with ID ${id} not found`);
         }
-        return user;
+        return profile;
     }
 
-    async changePassword(userId: string, oldPassword: string, newPassword: string) {
-        const user = await this.userModel.findById(userId);
-        if (!user) {
-            throw new NotFoundException('User not found');
+    async changePassword(profileId: string, oldPassword: string, newPassword: string) {
+        const profile = await this.profileModel.findById(profileId);
+        if (!profile) {
+            throw new NotFoundException('Profile not found');
         }
 
-        const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+        const isPasswordValid = await bcrypt.compare(oldPassword, profile.password);
         if (!isPasswordValid) {
             throw new UnauthorizedException('Current password is incorrect');
         }
 
-        user.password = await bcrypt.hash(newPassword, 10);
-        await user.save();
+        profile.password = await bcrypt.hash(newPassword, 10);
+        await profile.save();
 
         return { message: 'Password changed successfully' };
     }
 
     async deactivate(id: string) {
-        const user = await this.userModel
+        const profile = await this.profileModel
             .findByIdAndUpdate(id, { isActive: false }, { new: true })
-            .select('-password')
+            .select('-password -resetOtp -resetOtpExpiry')
             .exec();
-        if (!user) {
-            throw new NotFoundException(`User with ID ${id} not found`);
+        if (!profile) {
+            throw new NotFoundException(`Profile with ID ${id} not found`);
         }
-        return { message: 'User deactivated successfully', user };
+        return { message: 'Profile deactivated successfully', profile };
     }
 
     async delete(id: string) {
-        const user = await this.userModel.findByIdAndDelete(id).exec();
-        if (!user) {
-            throw new NotFoundException(`User with ID ${id} not found`);
+        const profile = await this.profileModel.findByIdAndDelete(id).exec();
+        if (!profile) {
+            throw new NotFoundException(`Profile with ID ${id} not found`);
         }
-        return { message: 'User deleted successfully' };
+        return { message: 'Profile deleted successfully' };
     }
 
-    private generateToken(user: UserDocument) {
-        const payload = { sub: user._id, contactNumber: user.contactNumber };
+    // ==================== FORGOT PASSWORD METHODS ====================
+
+    async requestPasswordReset(contactNumber: string) {
+        const profile = await this.profileModel.findOne({ contactNumber });
+        if (!profile) {
+            throw new NotFoundException('Profile with this contact number not found');
+        }
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+        // Hash OTP before storing
+        const hashedOtp = await bcrypt.hash(otp, 10);
+
+        // Save OTP to profile
+        profile.resetOtp = hashedOtp;
+        profile.resetOtpExpiry = otpExpiry;
+        await profile.save();
+
+        // TODO: Integrate SMS service here to send OTP
+        // For now, returning OTP in response (REMOVE IN PRODUCTION)
+        console.log(`[DEV] Password reset OTP for ${contactNumber}: ${otp}`);
+
+        return {
+            message: 'OTP sent successfully',
+            // REMOVE THIS IN PRODUCTION - only for testing
+            otp: otp,
+        };
+    }
+
+    async verifyResetOtp(contactNumber: string, otp: string) {
+        const profile = await this.profileModel.findOne({ contactNumber });
+        if (!profile) {
+            throw new NotFoundException('Profile with this contact number not found');
+        }
+
+        if (!profile.resetOtp || !profile.resetOtpExpiry) {
+            throw new UnauthorizedException('No password reset request found. Please request a new OTP.');
+        }
+
+        // Check if OTP is expired
+        if (new Date() > profile.resetOtpExpiry) {
+            throw new UnauthorizedException('OTP has expired. Please request a new one.');
+        }
+
+        // Verify OTP
+        const isOtpValid = await bcrypt.compare(otp, profile.resetOtp);
+        if (!isOtpValid) {
+            throw new UnauthorizedException('Invalid OTP');
+        }
+
+        return { message: 'OTP verified successfully', verified: true };
+    }
+
+    async resetPassword(contactNumber: string, otp: string, newPassword: string) {
+        const profile = await this.profileModel.findOne({ contactNumber });
+        if (!profile) {
+            throw new NotFoundException('Profile with this contact number not found');
+        }
+
+        if (!profile.resetOtp || !profile.resetOtpExpiry) {
+            throw new UnauthorizedException('No password reset request found. Please request a new OTP.');
+        }
+
+        // Check if OTP is expired
+        if (new Date() > profile.resetOtpExpiry) {
+            throw new UnauthorizedException('OTP has expired. Please request a new one.');
+        }
+
+        // Verify OTP
+        const isOtpValid = await bcrypt.compare(otp, profile.resetOtp);
+        if (!isOtpValid) {
+            throw new UnauthorizedException('Invalid OTP');
+        }
+
+        // Hash new password and update
+        profile.password = await bcrypt.hash(newPassword, 10);
+        profile.resetOtp = undefined;
+        profile.resetOtpExpiry = undefined;
+        await profile.save();
+
+        return { message: 'Password reset successfully' };
+    }
+
+    private generateToken(profile: ProfileDocument) {
+        const payload = { sub: profile._id, contactNumber: profile.contactNumber };
         return this.jwtService.sign(payload);
     }
 }
+
